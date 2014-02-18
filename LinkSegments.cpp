@@ -231,7 +231,7 @@ int main(int argc, char **argv)
                 if(y_num<2)
                 {
                     //Instead of having a single point in the end, we have a plane of 4 points...
-                    cout<<"Plane found... "<<endl;
+                    //cout<<"Plane found... "<<endl;
                     
                     if(i_Seg->begin()->m==8)
                     {
@@ -253,8 +253,10 @@ int main(int argc, char **argv)
             snapshot = int2string(id,99999);
             //cout<<"Aberba snapshot... "<<snapshot<<endl;
             //cout<<"Size Y: "<<link.YJunction.size()<<endl;
-            link.YJunctionOutput(c);
+            link.YJunctionNet[c].push_back(link.YJunction);
+            //link.YJunctionOutput(c);
         }
+        cout<<"Zenbat YJunction "<<link.YJunctionNet[c].size()<<endl;
     }
     
     Network_list_time OrderedSegments[2];
@@ -272,9 +274,37 @@ int main(int argc, char **argv)
     
     bool next_point = 0;
     
+    Network_list::iterator i_Y_tsp, i_Y_tsp_ref, i_Y_Ord;
+    Point_list::iterator i_Y_point, i_Y_point_Ord, i_Y_ref;
     
-    //Lehenengoa sartu ordered listan.
-
+    Point_list Y_temp;
+    
+    //Create Ordered Y list using first timestep (OK)
+    for(int i=0; i<2; i++)
+    {
+        i_Y_tsp=link.YJunctionNet[i].begin();
+        cout<<"Y Network-aren tamaina aurretik "<<link.YJunctionNet[i].size()<<endl;
+        cout<<"Aurretik "<<i_Y_tsp->size()<<endl;
+        
+        for(i_Y_point=i_Y_tsp->begin(); i_Y_point!=i_Y_tsp->end(); i_Y_point++)
+        {
+            i_Y_point->m=0;
+            
+            Y_temp.push_back(*i_Y_point);
+            
+            //Remove Y's from old network
+            i_Y_tsp->erase(i_Y_point);
+            i_Y_point--;
+            
+            link.OrderedYJunctions[i].push_back(Y_temp);
+            Y_temp.clear();
+        }
+        link.YJunctionNet[i].erase(i_Y_tsp);
+        cout<<"Ondoren "<<link.OrderedYJunctions[i].size()<<" || "<<i_Y_tsp->size()<<endl;
+        cout<<"YNetwork-aren tamaina ondoren "<<link.YJunctionNet[i].size()<<endl;
+    }
+    
+    //Create Ordered list using first timestep (OK)
     for(int i=0; i<2; i++)
     {
         i_tsp=link.SegmentsNet[i].begin();
@@ -300,15 +330,14 @@ int main(int argc, char **argv)
         cout<<"Network-aren tamaina ondoren "<<link.SegmentsNet[i].size()<<endl;
     }
     
-    //Create empty list
-    link.CreateEmptyList();
-    
 //bool first;
 
+    Network::iterator i_tsp_ref;
     Network_time :: iterator i_SegID;
+    Network_list:: iterator i_temp, i_last;
     Network_list_time :: iterator i_seg_Ord;
     Point_list::iterator i_point_Ord, i_point_Ord_Aux;
-    Point_list temp_list;
+    Point_list temp_list,temp_list2;
     
     
     
@@ -321,21 +350,173 @@ int main(int argc, char **argv)
     int how_many=0;
     bool linked_seg=0;
     bool next_seg=false;
-
+    bool next_Y=false;
+    bool sobran[2];
+    //Y-junction Linking (OK)
     for(int i=0; i<2; i++)
     {
         t_step=0;
+        sobran[i]=0;
+        
+        //Sartu denbora baten
+        for(i_Y_tsp=link.YJunctionNet[i].begin(); i_Y_tsp!=link.YJunctionNet[i].end(); i_Y_tsp++)
+        {
+            next_Y=false;
+            
+            if(sobran[i])
+            {
+                //Sobratu direnak, sartu lista ordenatuan baita ere
+                //Honela hurrengo konaparaziorako jadanik hor egonen dira
+                while(i_Y_tsp_ref->size()>0)
+                {
+                    for(i_Y_point=i_Y_tsp_ref->begin(); i_Y_point!=i_Y_tsp_ref->end(); i_Y_point++)
+                    {
+                        i_Y_point->m=t_step;
+                        
+                        Y_temp.push_back(*i_Y_point);
+                        
+                        //Remove Y's from old network
+                        i_Y_tsp->erase(i_Y_point);
+                        i_Y_point--;
+                        
+                        link.OrderedYJunctions[i].push_back(Y_temp);
+                        Y_temp.clear();
+                    }
+                }
+                sobran[i]=false;
+            }
+            t_step++;
+            for(i_Y_point=i_Y_tsp->begin(); i_Y_point!=i_Y_tsp->end(); i_Y_point++)
+            {
+                if(next_Y)
+                {
+                    i_Y_tsp->erase(i_Y_ref);
+                    next_Y=false;
+                }
+                for(i_Y_Ord=link.OrderedYJunctions[i].begin(); i_Y_Ord!=link.OrderedYJunctions[i].end(); i_Y_Ord++)
+                {
+                    i_Y_point_Ord=i_Y_Ord->begin(); //Beti lehenengoa, aurretik sartuko baitiogu lotutakoa.
+                    
+                    link.Y_current=*i_Y_point;
+                    link.Y_next=*i_Y_point_Ord;
+                    
+                    if(link.CausalDist(1,0))
+                    {
+                        i_Y_point->m=t_step;
+                        
+                        i_Y_ref=i_Y_point;
+                        i_Y_Ord->push_front(*i_Y_point);
+                        
+                        next_Y=true;
+                        break;
+                    }
+                }
+            }
+            if(i_Y_tsp->size()>0)
+            {
+                i_Y_tsp_ref=i_Y_tsp;
+                sobran[i]=true;
+            }
+        }
+    }
+    
+    //Store left unlinked segments od the last timestep (OK)
+    for(int i=0; i<2; i++)
+    {
+        t_step=0;
+        for(i_Y_tsp=link.YJunctionNet[i].begin(); i_Y_tsp!=link.YJunctionNet[i].end(); i_Y_tsp++)
+        {
+            t_step++;
+            
+            while(i_Y_tsp->size()>0)
+            {
+                for(i_Y_point=i_Y_tsp->begin(); i_Y_point!=i_Y_tsp->end(); i_Y_point++)
+                {
+                    i_Y_point->m=t_step;
+                    
+                    Y_temp.push_back(*i_Y_point);
+                    
+                    //Remove Y's from old network
+                    i_Y_tsp->erase(i_Y_point);
+                    i_Y_point--;
+                    
+                    link.OrderedYJunctions[i].push_back(Y_temp);
+                    Y_temp.clear();
+                }
+            }
+        }
+    }
+
+    int denbora=0;
+
+    //Uncomment for checks
+    /*for(int i=0; i<2; i++)
+    {
+        cout<<i<<endl;
+        cout<<"YJunctionNet-en tamaina "<<link.YJunctionNet[i].size()<<endl;
+        
+        for(i_Y_tsp=link.YJunctionNet[i].begin(); i_Y_tsp!=link.YJunctionNet[i].end(); i_Y_tsp++)
+        {
+            cout<<"Zenbat Y gelditu dira sobran? "<<i_Y_tsp->size()<<endl;
+        }
+        cout<<"OrderedNetwork-en tamaina "<<link.OrderedYJunctions[i].size()<<endl;
+        for(i_Y_tsp=link.OrderedYJunctions[i].begin(); i_Y_tsp!=link.OrderedYJunctions[i].end(); i_Y_tsp++)
+        {
+            denbora=i_Y_tsp->begin()->m;
+            cout<<"Aber hau... "<<i_Y_tsp->size()<<" azken denbora "<<denbora<<endl;
+        }
+    }*/
+    //Segment Linking (OK)
+    for(int i=0; i<2; i++)
+    {
+        t_step=0;
+        sobran[i]=false;
         //Sartu denbora baten
         for(i_tsp=link.SegmentsNet[i].begin(); i_tsp!=link.SegmentsNet[i].end(); i_tsp++)
         {
+            next_seg=false;
             t_step++;
-            //Hartu denbora honetako segmentu bat
+            
+            //Store new segments, after linking
+            if(sobran[i])
+            {
+                //Sobratu direnak, sartu lista ordenatuan baita ere
+                //Honela hurrengo konaparaziorako jadanik hor egonen dira
+                while(i_tsp_ref->size()>0)
+                {
+                    for(i_seg1=i_tsp_ref->begin(); i_seg1!=i_tsp_ref->end(); i_seg1++)
+                    {
+                        temp.p_list=*i_seg1;
+                        temp.time=t_step;
+                        
+                        OrderedSegments[i].push_back(temp);
+                        
+                        //Remove segments from old network
+                        i_tsp_ref->erase(i_seg1);
+                        i_seg1--;
+                        
+                        link.OrderedNetwork[i].push_back(OrderedSegments[i]);
+                        OrderedSegments[i].clear();
+                    }
+                }
+                sobran[i]=false;
+            }
+            
+            
+            count=0;
+            //Link Segments
             for(i_seg1=i_tsp->begin(); i_seg1!=i_tsp->end(); i_seg1++)
             {
-                //Gerorako
-                //i_seg1=i_tsp->begin();
+                i_last=i_tsp->end();
+                count++;
+
                 linked_Y=0;
-                next_seg=false;
+                if(next_seg)
+                {
+                    i_tsp->erase(i_temp);
+                    next_seg=false;
+                }
+                
                 //Segmentu baten eboluzioa hartu, aukeratutako segmentua hauekin konparatzeko
                 for(i_SegID=link.OrderedNetwork[i].begin(); i_SegID!=link.OrderedNetwork[i].end(); i_SegID++)
                 {
@@ -372,17 +553,16 @@ int main(int argc, char **argv)
                                         {
                                             linked_Y++;
                                             
-                                            cout<<"Aurkittuta "<<endl;
-                                            
                                             temp.p_list=*i_seg1;
                                             temp.time=t_step;
                                             
                                             i_SegID->push_front(temp);
                                             
-                                            i_tsp->erase(i_seg1);
-                                            if(i_seg1!=i_tsp->begin())
+                                            i_temp=i_seg1;
+                                            i_last--;
+                                            if(i_seg1==i_last)
                                             {
-                                                i_seg1--;
+                                                i_tsp->erase(i_temp);
                                             }
                                             next_seg=true;
                                             break;
@@ -394,30 +574,48 @@ int main(int argc, char **argv)
                         }
                     }
                 }
-                /*if (linked_Y==0)
-                {
-                    //Inorrekin lotu ez dugun segmentua sartu berri modura. Aurretik lista hutsak sartu, tms-aren arabera.
-                    temp.p_list=*i_seg1;
-                    temp.time=t_step;
-                    
-                    i_SegID->push_front(temp);
-                    cout<<"Fijo hemen dela,"<<endl;
-                    //i_tsp->erase(i_seg1);
-                    cout<<"ez?"<<endl;
-                    if(i_seg1!=i_tsp->begin())
-                    {
-                        i_seg1--;
-                    }
-                }*/
+            }
+            if(i_tsp->size()>0)
+            {
+                i_tsp_ref=i_tsp;
+                sobran[i]=true;
             }
         }
     }
 
-    cout<<"How many "<<t_step<<endl;
-    //Pruebatako
-    int denbora=0;
+    //Store left unlinked segments od the last timestep (OK)
     for(int i=0; i<2; i++)
     {
+        t_step=0;
+        for(i_tsp=link.SegmentsNet[i].begin(); i_tsp!=link.SegmentsNet[i].end(); i_tsp++)
+        {
+            t_step++;
+            
+            while(i_tsp->size()>0)
+            {
+                for(i_seg1=i_tsp->begin(); i_seg1!=i_tsp->end(); i_seg1++)
+                {
+                    temp.p_list=*i_seg1;
+                    temp.time=t_step;
+                    
+                    OrderedSegments[i].push_back(temp);
+                    
+                    //Remove segments from old network
+                    i_tsp->erase(i_seg1);
+                    i_seg1--;
+                    
+                    link.OrderedNetwork[i].push_back(OrderedSegments[i]);
+                    OrderedSegments[i].clear();
+                }
+            }
+        }
+    }
+
+    
+    //Pruebatako, uncomment to check
+    /*for(int i=0; i<2; i++)
+    {
+        cout<<i<<endl;
         cout<<"SegmentsNet-en tamaina "<<link.SegmentsNet[i].size()<<endl;
 
         for(i_tsp=link.SegmentsNet[i].begin(); i_tsp!=link.SegmentsNet[i].end(); i_tsp++)
@@ -428,391 +626,39 @@ int main(int argc, char **argv)
         for(i_SegID=link.OrderedNetwork[i].begin(); i_SegID!=link.OrderedNetwork[i].end(); i_SegID++)
         {
             denbora=i_SegID->begin()->time;
-            cout<<"Aber hau... "<<i_SegID->size()<<" azken denbora "<<denbora<<endl;
-        }
-    }
-    
-
-        
-        /*for(i_SegID=link.OrderedNetwork[i].begin(); i_SegID!=link.OrderedNetwork[i].end(); i_SegID++)
-        {
-            for(i_seg_Ord=i_SegID->begin(); i_seg_Ord!=i_SegID->end(); i_seg_Ord++)
-            {
-                /*linked_Y=0;
-                linked_seg=0;
-                found_Y=0;
-                go_to_seg=0;*/
-                //cout<<"Ordered segmentuen luzera "<<i_seg_Ord->size()<<endl;
-               /* for(i_point_Ord=i_seg_Ord->begin(); i_point_Ord!=i_seg_Ord->end(); i_point_Ord++)
-                {
-                    /*if(linked_seg==1)
-                    {
-                        break;
-                    }
-                    if(found_Y==1)
-                    {
-                        go_to_seg=1;
-                    }*/
-                    //Take Y-junction
-                  /*  if(i_point_Ord->m==8)
-                    {
-                        //And look where it is in the next timestep
-                        i_tsp=link.SegmentsNet[i].begin();
-                        for(i_seg1=i_tsp->begin(); i_seg1!=i_tsp->end(); i_seg1++)
-                        {
-                            /*if(linked_seg==1)
-                            {
-                                break;
-                            }
-                            if(go_to_seg==1)
-                            {
-                                i_seg1=i_seg_refY;
-                                
-                            }
-                            else if(found_Y==1)
-                            {
-                                break;
-                            }*/
-                            //cout<<"Segmentuen luzera "<<i_seg1->size()<<endl;
-                         /*   for(i_point=i_seg1->begin(); i_point!=i_seg1->end(); i_point++)
-                            {
-                                if(i_point->m==8)
-                                {
-                                    link.Y_current=*i_point_Ord;
-                                    link.Y_next=*i_point;
-                                    /*cout<<"Current: "<<link.Y_current.x<<" "<<link.Y_current.y<<" "<<link.Y_current.z<<endl;
-                                    cout<<"Next: "<<link.Y_next.x<<" "<<link.Y_next.y<<" "<<link.Y_next.z<<endl;
-                                    cout<<"zenbat "<<linked_Y<<endl;*/
-                                    //And now check if it is causaly connected
-                                    //error=2---> to settings!
-                               /*     if(link.CausalDist(1,2))
-                                    {
-                                        linked_Y++;
-                                        cout<<"Aurkittu do causally connected! "<<endl;
-                                        
-                                        
-                                        
-                                        //Lehenengoa aurkittutakoak, gorde segmentuaren referentzia
-                                        /*if(found_Y==0)
-                                        {
-                                            i_seg_refY = i_seg1;
-                                            found_Y=1;
-                                            break;
-                                        }
-                                        if(linked_Y==2)
-                                        {
-                                            linked_seg=1;
-                                            break;
-                                        }*/
-                                        
-                                        //Go to the next Y in the segment
-                                        //i_point_Ord_Aux=i_point_Ord;
-                                        //i_point_Ord_Aux++;
-                                        /*for(i_point_Ord_Aux=i_point_Ord;i_point_Ord_Aux!=i_seg1->end(); i_point_Ord_Aux++)
-                                        {
-                                            if(i_point_Ord_Aux->m==8)
-                                            {
-                                                cout<<"Hurrengoa aurkituta! "<<endl;
-                                                cout<<i_point_Ord_Aux->x<<" "<<i_point_Ord_Aux->y<<" "<<i_point_Ord_Aux->z<<endl;
-                                            }
-                                        }
-                                  //  }
-                                    else if(found_Y==1 && linked_Y==1)
-                                    {
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            //cout<<"Aber hau... "<<i_SegID->size()<<" azken denbora "<<denbora<<endl;
         }
     }*/
-    /*for(int i=0; i<2; i++)
-    {
-        for(i_tsp=SegmentsNet[i].begin(); i_tsp!=SegmentsNet[i].end(); i_tsp++)
-        {
-            for(i_seg1=i_tsp->begin(); i_seg1!=i_tsp->end(); i_seg1++)
-            {
-                //next_seg=0;
-                //timestep honetako segmentua hartua
-                //first=1;
-                
-                for(i_SegID=OrderedNetwork[i].begin(); i_SegID!=OrderedNetwork[i].end(); i_SegID++)
-                {
-                    /*if(next_seg)
-                    {
-                        next_seg=0;
-                        break;
-                    }*/
-
-                    //Beti listako lehenengoa izanen da, aztertutako azkeneko timestepari dagokiona, push front egin baitugu.
-                    
-                    /*i_seg_Ord=i_SegID->begin();
-
-                    //ID honi dagokion azkeneko timestepeko "bertsioa"
-                    points_Common=0;
-                    
-					
-					//hartu puntu bat
-                    for(i_point=i_seg1->begin(); i_point!=i_seg1->end(); i_point++)
-                    {
-                        /*if(next_seg)
-                        {
-                            break;
-                        }*/
-						
-						//Konparatu ordenatutako guztiekin
-                        /*for(i_point_Ord=i_seg_Ord->begin(); i_point_Ord!=i_seg_Ord->end(); i_point_Ord++)
-                        {
-                            if(next_point || next_seg)
-                            {
-                                next_point=0;
-                                break;
-                            }
-                            
-                            if(*i_point==*i_point_Ord)
-                            {
-                                points_Common++;
-                                
-								//Hurrengo puntua hartu
-                                next_point=1;
-                                
-                                if(points_Common > CommonPoints)
-                                {
-                                    next_point=0;
-                                    //Beti listaren hasierara gehituko dugu, honela errexagoa izanen baita ondoz ondoko timestep-ak konparatzea
-                                    i_SegID->push_front(*i_seg1);
-                                    i_tsp->erase(i_seg1);
-									
-                                    next_seg=1;
-                                }
-                            }
-                        }
-                    }
-                }
-                //Punturik komunean ez dutenak edo eskatutakoa baino gutxiago
-                if(points_Common==0 || points_Common < CommonPoints)
-                {                    
-                    OrderedSegments[i].push_back(*i_seg1);
-                    i_tsp->erase(i_seg1);
-                    i_seg1--;
-                    OrderedNetwork[i].push_back(OrderedSegments[i]);
-                    OrderedSegments[i].clear();
-                }
-            }
-        }
-        cout<<"Number of timesteps: "<<SegmentsNet[i].size()<<"  ||  Found segments "<<OrderedNetwork[i].size()<<endl;
-    }
-	
-	cout<<"Checking..."<<endl;
-	
-	Network::iterator i_SegID_next;
-
-	
-    //PROBATZEKO
     
+    float v=0;
+    
+    //Get Y-junction velocity
     for(int i=0; i<2; i++)
     {
-        for(i_SegID=OrderedNetwork[i].begin(); i_SegID!=OrderedNetwork[i].end();i_SegID++)
+        for(i_Y_Ord=link.OrderedYJunctions[i].begin(); i_Y_Ord!=link.OrderedYJunctions[i].end(); i_Y_Ord++)
         {
-            cout<<i<<" Ordenatuetan ze tamaina du ID bakoitzak? "<<i_SegID->size()<<endl;
-        }
-        for(i_tsp=SegmentsNet[i].begin(); i_tsp!=SegmentsNet[i].end(); i_tsp++)
-        {
-            cout<<i<<" TimeStep bakoitzean segmentuak "<<i_tsp->size()<<endl;
-        }
-    }*/
-	
-	/*int Y_ID[2];
-	int kk=0;
-	
-	Point_list YJunctions[2][2];
-	Point_list::iterator i_Yref;
-	Point Y_ref;
-	
-	bool firstL, firstR;
-
-	
-	for(int i=0; i<2; i++)
-	{
-		kk=0;
-		firstL=firstR=1;
-		for(i_SegID=OrderedNetwork[i].begin(); i_SegID!=OrderedNetwork[i].end();i_SegID++)
-        {
-			kk++;
-			for(i_seg_Ord=i_SegID->begin(); i_seg_Ord!=i_SegID->end(); i_seg_Ord++)
-			{
-				Y_ID[i]=0;
-				for(i_point_Ord=i_seg_Ord->begin(); i_point_Ord!=i_seg_Ord->end(); i_point_Ord++)
-				{
-					if(i_point_Ord->m==8)
-					{
-						Y_ID[i]++;
-						
-						//cout<<"Y-junction! "<<Y_ID[i]<<endl;
-						
-						if(kk==3)
-						{
-							cout<<"Coords: "<<i_point_Ord->x<<" "<<i_point_Ord->y<<" "<<i_point_Ord->z<<endl;
-							i_point_Ord;
-							if(!firstL && !firstR)
-							{
-								for(int c=0; c<2; c++)
-								{
-									//for(i_Yref=YJunctions[c].begin(); i_Yref!=YJunctions[c].end(); i_Yref++)
-									//{
-									Y_ref=YJunctions[i][c].back();
-										if(near(*i_point_Ord,Y_ref,256,40))//DistYjunc)
-										{
-											YJunctions[i][c].push_back(*i_point_Ord);
-											break;
-										}
-									//}
-								}
-							}
-							if(!firstL && firstR)
-							{
-								cout<<"Bigarrena barrena"<<endl;
-								YJunctions[i][1].push_back(*i_point_Ord);
-								firstR=0;
-							}
-							if(firstL && firstR)
-							{
-								cout<<"Lehenengoa sartuta"<<endl;
-								YJunctions[i][0].push_back(*i_point_Ord);
-								firstL=0;
-							}
-
-							
-						}
-					}
-				}
-			}
-		}
-	}
-    
-	
-	fstream fileYVelocity[2][2];
-    string nameYVelocity[2][2];
-	Point Yjunc;
-	Point_list::iterator i_Y;
-	float v;
-	int NumY[2];
-	
-	nameYVelocity[0][0] = filename_root+output_path+"YvelocityAFront.dat";//_"+int2string(ID[i])+".dat";
-	nameYVelocity[0][1] = filename_root+output_path+"YvelocityABack.dat";//_"+int2string(ID[i])+".dat";
-	nameYVelocity[1][0] = filename_root+output_path+"YvelocityBFront.dat";//_"+int2string(ID[i])+".dat";
-	nameYVelocity[1][1] = filename_root+output_path+"YvelocityBBack.dat";//_"+int2string(ID[i])+".dat";
-
-	
-	for(int i=0; i<2; i++)
-	{
-		for(int c=0; c<2; c++)
-		{
-			NumY[c]=0;
-			
-			fileYVelocity[i][c].open( nameYVelocity[i][c].c_str(), fstream::out );
-
-			for(i_Y=YJunctions[i][c].begin(); i_Y!=YJunctions[i][c].end(); i_Y++)
-			{
-				NumY[c]++;
-				if(NumY[c]==YJunctions[i][c].size())
-				{
-					break;
-				}
-				i_Yref = i_Y;
-				i_Yref++;
-				
-				cout<<i_Yref->x<<" "<<i_Yref->y<<" "<<i_Yref->z<<endl;
-				cout<<i_Y->x<<" "<<i_Y->y<<" "<<i_Y->z<<endl;
-				
-				v=velocity(*i_Yref,*i_Y,0.5,step);
-				
-				fileYVelocity[i][c]<<v<<endl;
-				
-				cout<<"Velozidadea "<<v<<endl;
-				
-				//cout<<i_Yref->x<<" "<<i_Yref->y<<" "<<i_Yref->z<<endl;
-			}
-			
-			fileYVelocity[i][c].close();
-		}
-	}
-		
-	
-	
-	
-	//////////////////////////////
-    ////////////SAVE//////////////
-    //////////////////////////////
-    int ID[2];
-    int SegID;
-    
-    fstream fileOrSegOutput[2];
-    string nameOrSegOutput[2];
-
-    
-    for(int i=0; i<2; i++)
-    {
-        SegID=0;
-        for(i_SegID=OrderedNetwork[i].begin(); i_SegID!=OrderedNetwork[i].end();i_SegID++)
-        {
-            SegID++;
-            ID[i]=SegID;
-            if(i==0)
+            if(i_Y_Ord->size()>2)
             {
-                nameOrSegOutput[i] = filename_root+output_path+"segmentsOrA_"+int2string(ID[i])+".dat";
-            }
-            else if(i==1)
-            {
-                nameOrSegOutput[i] = filename_root+output_path+"segmentsOrB_"+int2string(ID[i])+".dat";
-            }
-            
-            fileOrSegOutput[i].open( nameOrSegOutput[i].c_str(), fstream::out );
-            
-            //How many timeSteps
-            fileOrSegOutput[i]<<i_SegID->size()<<endl;
-            
-            for(i_seg_Ord=i_SegID->begin(); i_seg_Ord!=i_SegID->end(); i_seg_Ord++)
-            {
-                //How many points in each segment
-                fileOrSegOutput[i]<<i_seg_Ord->size()<<endl;
-            }
-            for(i_seg_Ord=i_SegID->begin(); i_seg_Ord!=i_SegID->end(); i_seg_Ord++)
-            {
-                for(i_point_Ord=i_seg_Ord->begin(); i_point_Ord!=i_seg_Ord->end(); i_point_Ord++)
+                cout<<"---------------------"<<endl;
+                cout<<"Eboluzioaren tamaina "<<i_Y_Ord->size()<<endl;
+                for(i_Y_point_Ord=i_Y_Ord->begin(); i_Y_point_Ord!=i_Y_Ord->end(); i_Y_point_Ord++)
                 {
-                    //Segments points
-                    fileOrSegOutput[i]<<i_point_Ord->x<<" "<<i_point_Ord->y<<" "<<i_point_Ord->z<<endl;
+                    i_Y_ref=i_Y_point_Ord;
+                    i_Y_ref++;
+                    
+                    link.Y_current=*i_Y_point_Ord;
+                    link.Y_next=*i_Y_ref;
+                    
+                    cout<<"Current x: "<<link.Y_current.x<<" "<<link.Y_current.y<<" "<<link.Y_current.z<<" "<<link.Y_current.m<<endl;
+                    cout<<"Next x: "<<link.Y_next.x<<" "<<link.Y_next.y<<" "<<link.Y_next.z<<" "<<link.Y_next.m<<endl;
+                    //cout<<"Next x: "<<i_Y_ref->x<<" "<<i_Y_ref->y<<" "<<i_Y_ref->z<<" "<<i_Y_ref->m<<endl;
+                    
+                    v=link.Velocity();
+                    
+                    cout<<"Ea ze abiadurak ematen ditton... "<<v<<endl;
+                    
                 }
             }
-            fileOrSegOutput[i].close();
-            
         }
-    }*/
-    
+    }
 }
-/*void YJunctionOutput(int c)
-{
-    fstream fileYjuncOutput;
-    string nameYjuncOutput;
-    if(c==0)
-    {
-        nameYjuncOutput = filename_root+output_path+"YjunctionsA_"+snapshot+".dat";
-    }
-    else
-    {
-        nameYjuncOutput = filename_root+output_path+"YjunctionsB_"+snapshot+".dat";
-    }
-    
-    fileYjuncOutput.open( nameYjuncOutput].c_str(), fstream::out );
-    
-    for(i_point=Yjunction.begin();i_point!=Yjunction.end();++i_point)
-    {
-        fileYjuncOutput<<i_point->x<<" "<<i_point->y<<" "<<i_point->z<<" "<<i_point->m<<endl;
-    }
-    fileYjuncOutput.close();
-    
-}*/

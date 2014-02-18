@@ -26,12 +26,17 @@ public:
     Point Empty;
     
     Point_list YJunction;
+    
+    Network_list YJunctionNet[2];
+    Network_list OrderedYJunctions[2];
+    
     Point_list EmptyList;
     
-    void CreateEmptyList();
     void CleanSegments();
     void YJunctionOutput(int c);
     bool CausalDist(int looking_at, float error);
+    
+    float Velocity();
 };
 
 #endif

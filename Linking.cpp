@@ -58,7 +58,7 @@ void Linking::YJunctionOutput(int c)
 bool Linking::CausalDist(int looking_at, float error)
 {
     float dx=0.5;
-    float dt=0.1;
+    float dt=dx*0.2;
     float MaxDist=0;
     int d_x, d_y, d_z;
     float dist=0;
@@ -93,11 +93,47 @@ bool Linking::CausalDist(int looking_at, float error)
     else{return false;}
     
 }
-void Linking::CreateEmptyList()
+float Linking::Velocity()
 {
-    Empty.x=2000;
-    Empty.y=2000;
-    Empty.z=2000;
+    float dx=0.5;
+    float dt=dx*0.2;
+    float MaxDist=0;
+    int d_x, d_y, d_z;
+    int Y_step=0;
+    float dist=0;
+    float vel=0;
+    float d_t=0;
     
-    EmptyList.push_back(Empty);
+    Y_step = Y_current.m - Y_next.m;
+    
+    d_t=Y_step * dt * (step/10);
+    
+    cout<<"Y_step "<<Y_step<<" d_t "<<d_t<<endl;
+    
+    d_x = Y_current.x - Y_next.x;
+    d_y = Y_current.y - Y_next.y;
+    d_z = Y_current.z - Y_next.z;
+    
+    if(abs(d_x) > lattice_size-2)
+    {
+        d_x=1;
+    }
+    if(abs(d_y) > lattice_size-2)
+    {
+        d_y=1;
+    }
+    if(abs(d_z) > lattice_size-2)
+    {
+        d_z=1;
+    }
+    
+    dist = sqrt(d_x*d_x + d_y*d_y + d_z*d_z);
+    dist *= dx;
+    
+    cout<<"Distantzia "<<dist<<endl;
+    
+    vel=dist/d_t;
+    
+    return vel;
+    
 }
