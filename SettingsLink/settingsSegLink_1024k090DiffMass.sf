@@ -1,0 +1,10 @@
+path=1024/k090DiffMass/SegmentsLength20DistAB4/
+output_path=Ordered/
+
+Lattice_size=256
+
+First_snapshot=08001
+Last_snapshot=15491
+Step_snapshot=110
+
+CommonPoints=5

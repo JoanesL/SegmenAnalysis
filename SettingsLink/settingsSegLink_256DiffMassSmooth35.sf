@@ -1,0 +1,10 @@
+path=256_DiffMassSmooth35/SegmentsLength20DistAB4/
+output_path=Ordered/
+
+Lattice_size=256
+
+First_snapshot=02821
+Last_snapshot=06091
+Step_snapshot=30
+
+CommonPoints=2
