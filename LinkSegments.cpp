@@ -631,34 +631,88 @@ int main(int argc, char **argv)
     }*/
     
     float v=0;
+    float v2=0;
+    float v_mean=0;
+    float v2_mean=0;
+    Point_list::iterator i_last_point, i_prelast_point;
+    Point_list::iterator i_Y_ref2;
+    int Y_took=0;
     
     //Get Y-junction velocity
     for(int i=0; i<2; i++)
     {
+        v=0;
+        v2=0;
+        Y_took=0; //How many Y's are considered in order to calculate mean velocities
         for(i_Y_Ord=link.OrderedYJunctions[i].begin(); i_Y_Ord!=link.OrderedYJunctions[i].end(); i_Y_Ord++)
         {
-            if(i_Y_Ord->size()>2)
+            v_mean=0;
+            v2_mean=0;
+            i_last_point=i_Y_Ord->end();
+            i_last_point--;
+            
+            i_prelast_point=i_Y_Ord->end();
+            i_prelast_point--;
+            i_prelast_point--;
+
+            if(i_Y_Ord->size()>6)
             {
-                cout<<"---------------------"<<endl;
-                cout<<"Eboluzioaren tamaina "<<i_Y_Ord->size()<<endl;
+                Y_took++;
+                //cout<<"---------------------"<<endl;
+                //cout<<"Eboluzioaren tamaina "<<i_Y_Ord->size()<<endl;
                 for(i_Y_point_Ord=i_Y_Ord->begin(); i_Y_point_Ord!=i_Y_Ord->end(); i_Y_point_Ord++)
                 {
+                    if(i_Y_point_Ord==i_last_point){break;}
                     i_Y_ref=i_Y_point_Ord;
                     i_Y_ref++;
                     
                     link.Y_current=*i_Y_point_Ord;
                     link.Y_next=*i_Y_ref;
                     
-                    cout<<"Current x: "<<link.Y_current.x<<" "<<link.Y_current.y<<" "<<link.Y_current.z<<" "<<link.Y_current.m<<endl;
-                    cout<<"Next x: "<<link.Y_next.x<<" "<<link.Y_next.y<<" "<<link.Y_next.z<<" "<<link.Y_next.m<<endl;
-                    //cout<<"Next x: "<<i_Y_ref->x<<" "<<i_Y_ref->y<<" "<<i_Y_ref->z<<" "<<i_Y_ref->m<<endl;
+                    /*if (i==0)
+                    {
+                        cout<<"Current x: "<<link.Y_current.x<<" "<<link.Y_current.y<<" "<<link.Y_current.z<<" "<<link.Y_current.m<<endl;
+                        cout<<"Next x: "<<link.Y_next.x<<" "<<link.Y_next.y<<" "<<link.Y_next.z<<" "<<link.Y_next.m<<endl;
+                        cout<<"Next x: "<<i_Y_ref->x<<" "<<i_Y_ref->y<<" "<<i_Y_ref->z<<" "<<i_Y_ref->m<<endl;
+                    }*/
                     
-                    v=link.Velocity();
                     
-                    cout<<"Ea ze abiadurak ematen ditton... "<<v<<endl;
+                    v_mean += link.Velocity();
                     
+                    //cout<<"Ea ze abiadurak ematen ditton... "<<link.Velocity()<<endl;
                 }
+                v_mean /= (i_Y_Ord->size()-1);
+                v += v_mean;
+                //cout<<"Mean abiadura "<<v_mean<<endl;
+                for(i_Y_point_Ord=i_Y_Ord->begin(); i_Y_point_Ord!=i_Y_Ord->end(); i_Y_point_Ord++)
+                {
+                    if(i_Y_point_Ord==i_prelast_point){break;}
+                    i_Y_ref2=i_Y_point_Ord;
+                    i_Y_ref2++;
+                    i_Y_ref2++;
+                    
+                    link.Y_current=*i_Y_point_Ord;
+                    link.Y_next=*i_Y_ref2;
+                    
+                    if (i==0)
+                    {
+                        cout<<"Current x: "<<link.Y_current.x<<" "<<link.Y_current.y<<" "<<link.Y_current.z<<" "<<link.Y_current.m<<endl;
+                        cout<<"Next x: "<<link.Y_next.x<<" "<<link.Y_next.y<<" "<<link.Y_next.z<<" "<<link.Y_next.m<<endl;
+                    }
+                    
+                    v2_mean += link.Velocity();
+                    
+                    //cout<<"Ea ze abiadurak ematen ditton... "<<link.Velocity()<<endl;
+                }
+                v2_mean /= (i_Y_Ord->size()-2);
+                v2 += v2_mean;
             }
         }
+        v /= Y_took;
+        v2 /= Y_took;
+        cout<<"########"<<endl;
+        cout<<"Y-junction Velocity, 1 step: "<<v<<" 2 steps "<<v2<<endl;
+        cout<<"########"<<endl;
+
     }
 }

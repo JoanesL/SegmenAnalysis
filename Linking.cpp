@@ -108,29 +108,25 @@ float Linking::Velocity()
     
     d_t=Y_step * dt * (step/10);
     
-    cout<<"Y_step "<<Y_step<<" d_t "<<d_t<<endl;
-    
     d_x = Y_current.x - Y_next.x;
     d_y = Y_current.y - Y_next.y;
     d_z = Y_current.z - Y_next.z;
     
-    if(abs(d_x) > lattice_size-2)
+    if(abs(d_x) >= lattice_size-2)
     {
-        d_x=1;
+        d_x=d_x%lattice_size;
     }
-    if(abs(d_y) > lattice_size-2)
+    if(abs(d_y) >= lattice_size-2)
     {
-        d_y=1;
+        d_y=d_x%lattice_size;
     }
-    if(abs(d_z) > lattice_size-2)
+    if(abs(d_z) >= lattice_size-2)
     {
-        d_z=1;
+        d_z=d_x%lattice_size;
     }
     
     dist = sqrt(d_x*d_x + d_y*d_y + d_z*d_z);
     dist *= dx;
-    
-    cout<<"Distantzia "<<dist<<endl;
     
     vel=dist/d_t;
     

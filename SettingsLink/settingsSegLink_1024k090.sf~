@@ -4,7 +4,7 @@ output_path=YJunctions/
 Lattice_size=1024
 
 First_snapshot=08001
-Last_snapshot=08441
+Last_snapshot=08991
 Step_snapshot=110
 
 CommonPoints=5
